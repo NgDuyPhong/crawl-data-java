@@ -1,11 +1,9 @@
 package com.crawldata.root;
 
-import java.io.Console;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.PrintWriter;
-import java.io.UnsupportedEncodingException;
 import java.math.BigInteger;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
@@ -22,11 +20,20 @@ import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
 
 /**
- * Hello world!
+ * This is a tool crawls data!
  *
  */
 public class App 
 {
+	// input key word search
+	private static String keySearch = "倉庫　軽作業　千葉県流山市";
+	// location is "" - (2km) or "10.0" - (10km)
+	private static String location = "10.0";
+	// Day posted options are "" - (all), "day", "3days", "week", "month"
+	private static String dayPosted = "";
+	// input bukken_id
+	private static String bukken_id = "34";
+	
 	private static final String[] LIST_JOB_TYPES = {"フルタイム", "パートタイム", "契約社員", "インターン"};
 	private final static String[] LIST_EXCLUSION_FLAG = {"フォーク","ﾌｫｰｸ"};
 	private final static String AN_HOUR = "1 時間 ";
@@ -43,24 +50,18 @@ public class App
 	            	"時給（from）",
 	            	"時給（to）	雇用形態"
 	};
-	private static int index = 0;
 	private static int countItem = 0;
-	private static ArrayList<String> dataCsv = new ArrayList<String>(); 
-	private static ArrayList<String> listHashRecruitmentID = new ArrayList<String>(); 
-	private static String keySearch = "倉庫　軽作業　千葉県流山市";
+	private static ArrayList<String> dataCsv = new ArrayList<String>();
+	private static ArrayList<String> listHashRecruitmentID = new ArrayList<String>();
 
     public static void main( String[] args )
     {
     	System.out.println( "start crawler" );
 		callApiCrawl();
-    	
-    	
     }
     
     public static int mainCrawlData(Document document, Date date) {
-
     	int count = 0;
-
     	String jobName = "";
     	String postPerson = "";
     	String salaryMin = "";
@@ -68,19 +69,13 @@ public class App
     	String jobType = "";
     	String provider = "";
     	String dateStr = "";
-
-		String bukken_id = "";
-//		String date = "";
-		String lradStr = "10.0";
+		String lradStr = location == "" ? "2km" : "10km";
 
     	Elements elms = document != null ? document.getElementsByClass("PwjeAc") : null;
     	countItem = count = elms.size();
 
 		if (elms != null)
 		for (Element element : elms) {
-
-//			System.out.println("index " + ++index);
-
 			jobName = element.getElementsByClass("BjJfJf PUpOsf").text();
 			postPerson = element.getElementsByClass("vNEEBe").text();
 			provider = getProvider(element.getElementsByClass("Qk80Jf").text());
@@ -113,16 +108,16 @@ public class App
 				}
 			}
 			String recruitmentID = "1" + provider + "2" + jobName + "3" + salaryMin + "4" + salaryMax + "5" + jobType;
-			String hashRecruitmentID = hashMd5(recruitmentID);// crypto.createHash('md5').update(recruitmentID).digest('hex');
-//			String hashRecruitmentID = "";
+			String hashRecruitmentID = hashMd5(recruitmentID);
 
 			if (listHashRecruitmentID.indexOf(hashRecruitmentID) == -1) {
 				listHashRecruitmentID.add(hashRecruitmentID);
 				String data = hashRecruitmentID + "," + bukken_id + ","
 						+ dateStr + "," + lradStr + "," + exclusionFlag + "," + postPerson + "," + provider + ","
 						+ jobName + "," + salaryMin + "," + salaryMax + "," + jobType;
-//				let lradStr = lrad === "" ? "2km" : "10km";
+
 				dataCsv.add(data);
+//				System.out.println(exclusionFlag + " -- " + postPerson + " -- " + provider + " -- " + jobName + " -- " + salaryMin + " -- " + salaryMax + " -- " + jobType);
 			} else {
 				// sum item of file output-- if recruitmentID exists
 				if (countItem > 0) {
@@ -131,28 +126,25 @@ public class App
 					countItem = 0;
 				}
 			}
-
-//			System.out.println(exclusionFlag + " -- " + postPerson + " -- " + provider + " -- " + jobName + " -- " + salaryMin + " -- " + salaryMax + " -- " + jobType);
 //				hashRecruitmentID, bukken_id, date, lradStr, exclusionFlag, postPerson, provider, jobName, salaryMin, salaryMax, jobType
-
 		}
 
 		return count;
     }
 
     public static void callApiCrawl() {
+    	
     	int sumInWhile = 0;
-		
 		int start = 0;
 		int count = 10;
 		int sum = 0;
-//		int countItem = 0;
 		Date date = new Date();
+
 		try {
 			while(sumInWhile < 150 && count > 0) {
 	    		count = 10;
     			String lrad = "&lrad=10.0"; // req.location != "2" ? "&lrad=10.0" : "";
-    			String chips = ""; // req.dayPosted != "0" ? ("&chips=date_posted:" + req.dayPosted + "&schips=date_posted;" + req.dayPosted) : ""
+    			String chips = dayPosted != "" ? ("&chips=date_posted:" + dayPosted + "&schips=date_posted;" + dayPosted) : "";
     			String q = URLEncoder.encode(keySearch, StandardCharsets.UTF_8.toString());
     			String urls = "https://www.google.com/search?yv=3&rciv=jb&"
     					+ lrad + chips + "nfpr=0&"
@@ -169,8 +161,6 @@ public class App
     			// get value crawl
     			count = mainCrawlData(document, date);
  
-//    			System.out.println(sum + "," + count + "," + sumInWhile);
-
     			if (countItem != 0) {
     				sum += countItem;
     				System.out.println("Total number of rows crawled: " + (sum));
@@ -201,27 +191,26 @@ public class App
             StringBuilder sb = new StringBuilder();
 
             // format font utf-8 when open file with excel
-            writer.append("\uFEFF");
+            sb.append("\uFEFF");
 
             // write header
             for (int i = 0; i < HEADER_CSV.length; i++) {
 				if (i == HEADER_CSV.length - 1) {
-					writer.append(HEADER_CSV[i]);
+					sb.append(HEADER_CSV[i]);
 				} else {
-					writer.append(HEADER_CSV[i] + ",");
+					sb.append(HEADER_CSV[i] + ",");
 				}
 			}
-            writer.append('\n');
+            sb.append('\n');
 
             // write content
             for (int i = 0; i < dataCsv.size(); i++) {
-            	writer.append(dataCsv.get(i));
-            	writer.append('\n');
+            	sb.append(dataCsv.get(i));
+            	sb.append('\n');
 			}
-            
-//            System.out.println(sb.toString());
-//
-//            writer.append(sb.toString());
+            writer.write(sb.toString());
+            writer.flush();
+            writer.close();
 
             System.out.println("write csv done! " + fileName);
 
@@ -239,7 +228,6 @@ public class App
 			byte[] digest = m.digest();
 			BigInteger bigInt = new BigInteger(1,digest);
 			hashtext = bigInt.toString(16);
-			
 		} catch (NoSuchAlgorithmException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
